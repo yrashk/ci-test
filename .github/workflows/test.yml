@@ -1,0 +1,41 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+      - release
+   pull_request_target:
+    branches:
+      - main
+    types:
+      # Default types that triggers a workflow ([1]):
+      # - [1] https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request
+      - opened
+      - synchronize
+      - reopened
+      # Types that we wand to handle in addition to keep labels tidy:
+      - closed
+      # Actual magic happens here:
+      - labeled
+  pull_request:
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+jobs:
+  remove-label:
+    # Remove `approved-for-ci-run` label if the workflow is triggered by changes in a PR.
+    # The PR should be reviewed and labelled manually again.
+
+    permissions:
+      pull-requests: write # For `gh pr edit`
+
+    if: |
+      contains(fromJSON('["opened", "synchronize", "reopened", "closed"]'), github.event.action) &&
+      contains(github.event.pull_request.labels.*.name, 'approved-for-ci-run')
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: gh pr --repo "${GITHUB_REPOSITORY}" edit "${PR_NUMBER}" --remove-label "approved-for-ci"
